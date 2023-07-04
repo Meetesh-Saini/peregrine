@@ -6,9 +6,12 @@ import argparse
 import os
 from codes import *
 from error import ErrorHandler
+import readline
+from pathlib import Path
 
 PEREGRINE_DIR_NAME = ".peregrine"
 PEREGRINE_FILE_NAME = "peregrinefile"
+PEREGRINE_PS1 = "\033[34m$\033[0m "
 
 errorhandler = ErrorHandler()
 
@@ -32,6 +35,14 @@ def check_phome(dirpath):
     return SUCCESS
 
 
+def shorten_user_path(path):
+    home_dir = os.path.expanduser("~")
+    if path.startswith(home_dir):
+        return os.path.join("~", os.path.relpath(path, home_dir))
+    else:
+        return path
+
+
 def supports_color():
     """
     Returns True if the running system's terminal supports color, and False
@@ -47,9 +58,20 @@ def supports_color():
     return supported_platform and is_a_tty
 
 
+class ArgparserException(Exception):
+    pass
+
+
+class ArgumentParser(argparse.ArgumentParser):
+    def error(self, message):
+        self.print_usage(sys.stderr)
+        print(f"{self.prog}: error: {message}")
+        raise ArgparserException()
+
+
 class CommandHandler:
     # Create the argument parser
-    parser = argparse.ArgumentParser(
+    parser = ArgumentParser(
         prog="peregrine",
         description="Command-line tool for indexing and searching files.",
     )
@@ -137,10 +159,18 @@ class CommandHandler:
             exit(1)
 
     def set_paths(self):
+        global PEREGRINE_PS1
         self.check_env_and_exit()
         self.HOME = os.getcwd()
         if self.PWD is None:
-            self.PWD = self.HOME
+            self.set_pwd(self.HOME)
+
+    def set_pwd(self, path):
+        global PEREGRINE_PS1
+        self.PWD = path
+        PEREGRINE_PS1 = (
+            f"[\033[32m{shorten_user_path(self.PWD)}\033[0m] \033[34m$\033[0m "
+        )
 
     def parse(self, args):
         func_mapping = {
@@ -148,6 +178,7 @@ class CommandHandler:
             "help": self.help,
             "pwd": self.pwd,
             "ls": self.ls,
+            "cd": self.cd,
         }
         if args.command is not None:
             if args.command not in {"init", "help"}:
@@ -185,19 +216,42 @@ class CommandHandler:
             name = f"\033[1;34m{i}\033[0m" if os.path.isdir(i) else i
             print(name)
 
+    def cd(self, args):
+        path = os.path.expanduser(args.directory)
+        path = path if os.path.isabs(path) else os.path.join(self.PWD, path)
+        path = os.path.abspath(path)
+        if not os.path.exists(path):
+            return errorhandler.log(INVALID_PATH)
+        child = Path(path)
+        home = Path(self.HOME)
+        if home not in child.parents and home != child:
+            return errorhandler.log(OUT_OF_SCOPE_PATH)
+
+        self.set_pwd(path)
+
     def help(self, args):
         if args.help_command:
             self.subparser.choices[args.help_command].print_help()
         else:
             self.parser.print_help()
 
+    def interactive(self):
+        while True:
+            command = input(PEREGRINE_PS1).strip()
+            if command == "exit":
+                break
+            try:
+                args = self.parser.parse_args(command.split())
+                self.parse(args)
+            except ArgparserException:
+                pass
+
 
 commandhandler = CommandHandler()
-args = commandhandler.parser.parse_args()
-commandhandler.parse(args)
-
-
-def interactive():
+try:
+    args = commandhandler.parser.parse_args()
+    commandhandler.parse(args)
+    if args.command is None:
+        commandhandler.interactive()
+except ArgparserException:
     pass
-
-interactive()

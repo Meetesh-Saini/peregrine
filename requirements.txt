@@ -1,0 +1,2 @@
+python_Levenshtein==0.21.1
+rake_nltk==1.0.6
