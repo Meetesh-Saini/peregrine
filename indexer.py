@@ -2,7 +2,6 @@ import os
 from sys import platform
 import pickle
 from typing import Dict, Union
-from Levenshtein import jaro
 from rake_nltk import Rake
 
 
@@ -25,10 +24,11 @@ class State(object):
 
 
 class Metadata(object):
-    __slots__ = ("keywords", "path", "u_meta")
+    __slots__ = ("keywords", "user_keywords", "path", "u_meta")
 
-    def __init__(self, keywords: set, path: str, u_meta : Union[os.stat_result, None]) -> None:
+    def __init__(self, keywords: set, user_keywords : set, path: str, u_meta : Union[os.stat_result, None]) -> None:
         self.keywords = keywords
+        self.user_keywords = user_keywords
         # full path of the file relative to peregrine home
         self.path = path
         # unique metadata
@@ -36,7 +36,7 @@ class Metadata(object):
         self.u_meta = u_meta
 
     def __str__(self) -> str:
-        return f"Metadata(\n  keywords: {self.keywords},\n  path: {self.path},\n  u_meta: {self.u_meta}\n)"
+        return f"Metadata(\n  keywords: {self.keywords},\n user_keywords: {self.user_keywords},\n  path: {self.path},\n  u_meta: {self.u_meta}\n)"
 
 
 class IndexTable(object):
@@ -170,8 +170,9 @@ class Indexer:
 
             old_keywords = set()
 
-            self.index_table.files[unique_id] = Metadata(keywords, filepath, self.get_unique_metadata(full_filepath))
+            self.index_table.files[unique_id] = Metadata(keywords, set(), filepath, self.get_unique_metadata(full_filepath))
 
+        keywords.update(self.index_table.files[unique_id].user_keywords)
         self.index_table.files[unique_id].keywords = keywords
         for i in old_keywords - keywords:  # in old keywords but not in new keywords
             if i not in self.index_table.keywords:
