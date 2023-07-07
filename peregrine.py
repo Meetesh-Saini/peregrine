@@ -131,10 +131,11 @@ class CommandHandler:
         metavar=("OPERATOR", "TIME"),
         help="Search by time (before, after, on)",
     )
-    search_parser.add_argument(
+    search_group = search_parser.add_mutually_exclusive_group()
+    search_group.add_argument(
         "--name", action="store_true", help="Search by name only"
     )
-    search_parser.add_argument(
+    search_group.add_argument(
         "--keyword", action="store_true", help="Search by keyword only"
     )
 

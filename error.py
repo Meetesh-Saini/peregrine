@@ -20,4 +20,6 @@ class ErrorHandler():
         NO_PEREGRINEFILE : "peregrinefile file not found in peregrine directory. Use `init` to create new one.",
         INVALID_PATH : "No such path exists",
         OUT_OF_SCOPE_PATH : "Permission denied. The requested path is out of scope of peregrine.",
+        INVALID_DATE : "Invalid date. Date format is YYYYMMDD",
+        INVALID_TIME : "Invalid time. Time format is HHMMSS",
     }
